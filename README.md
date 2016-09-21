@@ -2,7 +2,7 @@
 A nodejs script that generates the command line to start a docker image using the docker inspect of an existing image
 
 ## Usage
-Save the docker inspect of you image in the roor folder as a .json file and then run
+Save the docker inspect of you image in the root as a .json file and then run
 ```javascript
 node index.js
 ```
