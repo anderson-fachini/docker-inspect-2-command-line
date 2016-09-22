@@ -14,6 +14,13 @@ fs.readdir('.', function(err, files) {
     }
 });
 
+function hasWrapChar(str) {
+	var wrapChars = [' ', '&', ';'];
+	for (var c in wrapChars)
+		if (str.indexOf(wrapChars[c]) !== -1)
+			return true;
+	return false;
+}
 
 function getDockerCommandLine(fileName) {
     var dockerConfig = require('./' + fileName)[0];
@@ -29,7 +36,7 @@ function getDockerCommandLine(fileName) {
                 var env = envs[i];
                 if (!env.startsWith('PATH') && !env.startsWith('LANG') && !env.startsWith('LC_ALL')) {
                     ret += ' -e ';
-                    if (env.indexOf(' ') !== -1 || env.indexOf('&') !== -1) {
+                    if (hasWrapChar(env)) {
                         ret += env.substring(0, env.indexOf('=')) + '="' + env.substring(env.indexOf('=')+1) + '"';
                     } else {
                         ret += env;
