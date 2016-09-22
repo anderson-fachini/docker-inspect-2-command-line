@@ -14,6 +14,9 @@ fs.readdir('.', function(err, files) {
     }
 });
 
+/**
+ * If a environment variable value has one of this characters, it needs to be wrapped with double quotation
+ */
 function hasWrapChar(str) {
 	var wrapChars = [' ', '&', ';'];
 	for (var c in wrapChars)
