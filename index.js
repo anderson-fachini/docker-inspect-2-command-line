@@ -25,10 +25,18 @@ function hasWrapChar(str) {
 	return false;
 }
 
+function isHexaString(str) {
+	return /^[A-Fa-f0-9]+$/.test(str);
+}
+
 function getDockerCommandLine(fileName) {
     var dockerConfig = require('./' + fileName)[0];
     var command = 'docker run -d';
     command += ' --name=' + dockerConfig['Name'].substring(1);
+
+	if (!isHexaString(dockerConfig['Config']['Hostname'])) {
+		command += ' --hostname=' + dockerConfig['Config']['Hostname'];
+	}
 
     function getEnvs(dockerConfig) {
         var ret = '';
@@ -68,9 +76,22 @@ function getDockerCommandLine(fileName) {
             for (var i = 0; i < links.length; i++) {
                 var link = links[i];
                 var splitted = link.split('/');
-                ret += ' --link ' + splitted[1] + splitted[3];
+                ret += ' --link ' + splitted[1].slice(0,-1);
+				if (splitted[1].slice(0,-1) !== splitted[3]) {
+					ret += ':' + splitted[3];
+				}
             }
         }
+
+		if (dockerConfig['HostConfig']['Binds'] != null) {
+			var len = dockerConfig['HostConfig']['Binds'].length;
+			for (var i = 0; i < len; i++) {
+				var bind = dockerConfig['HostConfig']['Binds'][i];
+				ret += ' -v ';
+				if (hasWrapChar(bind)) bind = '"' + bind + '"';
+				ret += bind;
+			}
+		}
 
         return ret;
     }
