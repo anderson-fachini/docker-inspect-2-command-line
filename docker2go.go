@@ -38,11 +38,16 @@ func main() {
         Config map[string] string
     }
 
+    type RestartPolicy struct {
+        Name string
+    }
+
     type HostConfig struct {
         PortBindings map[string] []PortBinding
         Links []string
         Binds []string
         LogConfig LogConfig
+        RestartPolicy RestartPolicy
     }
 
     type DockerConfig struct {
@@ -63,6 +68,10 @@ func main() {
     var command string
     command += "docker run -d"
     command += " --name=" + dockerConfig.Name[1:]
+
+    if dockerConfig.HostConfig.RestartPolicy.Name != "no" {
+        command += " --restart " + dockerConfig.HostConfig.RestartPolicy.Name
+    }
 
     _, err = hex.DecodeString(dockerConfig.Config.Hostname)
     if err != nil {
