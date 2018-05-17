@@ -1,13 +1,11 @@
 # docker-inspect-2-command-line
-A Go lang script that generates the command line to start a docker image using the docker inspect of an existing image
+A Go lang script that generates the command line to start a docker container using the docker inspect of an existing container
 
 ## Usage
-Save the docker inspect of you image in a text file (ex.: inspect.txt) and than run
 ```
-docker2go.exe inspect.txt
+docker inspect <container_name> | docker2go
 ```
-
-Alternatively, you can run the source code:
-```go
-go run docker2go.go inspect.txt
+OR
+```
+./docker2go docker_inspect.txt another_docker_inspect.json ...
 ```
