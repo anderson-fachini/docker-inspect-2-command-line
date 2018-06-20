@@ -1,32 +1,35 @@
 package main
 
 import (
+	"bufio"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
-	"strings"
-	"bufio"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 type DockerConfig struct {
-	Name string
+	Name   string
 	Config struct {
+		Env      []string
 		Hostname string
-		Env []string
-		Image string
+		Image    string
 	}
 	HostConfig struct {
-		PortBindings  map[string][] struct {
-			HostIp string
-			HostPort string
-		}
-		Links []string
-		Binds []string
+		Binds     []string
+		Links     []string
 		LogConfig struct {
 			Config map[string]string
+		}
+		Memory       int
+		PortBindings map[string][]struct {
+			HostIp   string
+			HostPort string
 		}
 		RestartPolicy struct {
 			Name string
@@ -35,7 +38,8 @@ type DockerConfig struct {
 }
 
 var dockerConfigs []DockerConfig
-	func jsonInspectToCommand(data []byte) (string, error) {
+
+func jsonInspectToCommand(data []byte) (string, error) {
 	err := json.Unmarshal(data, &dockerConfigs)
 	if err != nil {
 		fmt.Println("Error parsing json:", err)
@@ -55,6 +59,25 @@ var dockerConfigs []DockerConfig
 	_, err = hex.DecodeString(dockerConfig.Config.Hostname)
 	if err != nil {
 		command += " --hostname=" + dockerConfig.Config.Hostname
+	}
+
+	if dockerConfig.HostConfig.Memory > 0 {
+		// memory is stored in bytes, minumum is 4M
+		command += " -m "
+
+		var kbMemory = float64(dockerConfig.HostConfig.Memory) / 1024
+		var mbMemory = kbMemory / 1024
+		var gbMemory = mbMemory / 1024
+
+		if gbMemory >= 1 && math.Round(gbMemory) == gbMemory {
+			command += strconv.Itoa(int(gbMemory)) + "g"
+		} else if mbMemory >= 1 && math.Round(mbMemory) == mbMemory {
+			command += strconv.Itoa(int(mbMemory)) + "m"
+		} else if kbMemory >= 1 && math.Round(kbMemory) == kbMemory {
+			command += strconv.Itoa(int(kbMemory)) + "k"
+		} else {
+			command += strconv.Itoa(dockerConfig.HostConfig.Memory) + "b"
+		}
 	}
 
 	if dockerConfig.Config.Env != nil {
