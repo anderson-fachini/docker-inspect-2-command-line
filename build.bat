@@ -1,6 +1,8 @@
 rm docker2go.windows-amd64.exe
 rm docker2go.linux-amd64
 
+go fmt docker2go.go
+
 set GOARCH=amd64
 set GOOS=windows
 go build docker2go.go
