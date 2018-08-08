@@ -22,6 +22,7 @@ type DockerConfig struct {
 	}
 	HostConfig struct {
 		Binds     []string
+		Dns       []string
 		Links     []string
 		LogConfig struct {
 			Config map[string]string
@@ -77,6 +78,12 @@ func jsonInspectToCommand(data []byte) (string, error) {
 			command += strconv.Itoa(int(kbMemory)) + "k"
 		} else {
 			command += strconv.Itoa(dockerConfig.HostConfig.Memory) + "b"
+		}
+	}
+
+	if len(dockerConfig.HostConfig.Dns) > 0 {
+		for _, dns := range dockerConfig.HostConfig.Dns {
+			command += " --dns=" + dns
 		}
 	}
 
