@@ -1,0 +1,25 @@
+{
+  "name": "docker-inspect-2-command-line",
+  "version": "1.0.0",
+  "description": "A command line tool to obtain a docker command from a container inspect",
+  "main": "docker2go.js",
+  "dependencies": {
+    "yargs": "^13.3.0"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anderson-fachini/docker-inspect-2-command-line.git"
+  },
+  "keywords": [
+    "docker",
+    "inspect",
+    "command"
+  ],
+  "author": "Anderson Diego Kulpa Fachini",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/anderson-fachini/docker-inspect-2-command-line/issues"
+  },
+  "homepage": "https://github.com/anderson-fachini/docker-inspect-2-command-line#readme"
+}

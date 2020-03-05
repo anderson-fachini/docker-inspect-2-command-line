@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -21,13 +22,15 @@ type DockerConfig struct {
 		Image    string
 	}
 	HostConfig struct {
-		Binds     []string
-		Dns       []string
-		Links     []string
-		LogConfig struct {
+		AutoRemove bool
+		Binds      []string
+		Dns        []string
+		Links      []string
+		LogConfig  struct {
 			Config map[string]string
 		}
 		Memory       int
+		NanoCpus     int
 		PortBindings map[string][]struct {
 			HostIp   string
 			HostPort string
@@ -39,8 +42,15 @@ type DockerConfig struct {
 }
 
 var dockerConfigs []DockerConfig
+var format = false
 
 func jsonInspectToCommand(data []byte) (string, error) {
+	dockerConfigs = nil
+	var fmtEnding = ""
+	if format {
+		fmtEnding = " \\\n"
+	}
+
 	err := json.Unmarshal(data, &dockerConfigs)
 	if err != nil {
 		fmt.Println("Error parsing json:", err)
@@ -52,14 +62,21 @@ func jsonInspectToCommand(data []byte) (string, error) {
 	var command string
 	command += "docker run -d"
 	command += " --name=" + dockerConfig.Name[1:]
+	command += fmtEnding
 
-	if dockerConfig.HostConfig.RestartPolicy.Name != "no" {
+	if dockerConfig.HostConfig.AutoRemove {
+		command += " --rm"
+	}
+
+	if dockerConfig.HostConfig.RestartPolicy.Name != "no" && dockerConfig.HostConfig.RestartPolicy.Name != "" {
 		command += " --restart " + dockerConfig.HostConfig.RestartPolicy.Name
+		command += fmtEnding
 	}
 
 	_, err = hex.DecodeString(dockerConfig.Config.Hostname)
 	if err != nil {
 		command += " --hostname=" + dockerConfig.Config.Hostname
+		command += fmtEnding
 	}
 
 	if dockerConfig.HostConfig.Memory > 0 {
@@ -79,12 +96,19 @@ func jsonInspectToCommand(data []byte) (string, error) {
 		} else {
 			command += strconv.Itoa(dockerConfig.HostConfig.Memory) + "b"
 		}
+		command += fmtEnding
+	}
+
+	if dockerConfig.HostConfig.NanoCpus > 0 {
+		var cpus = float64(dockerConfig.HostConfig.NanoCpus) / 1000000000
+		command += " --cpus=" + strconv.FormatFloat(cpus, 'f', -1, 64)
 	}
 
 	if len(dockerConfig.HostConfig.Dns) > 0 {
 		for _, dns := range dockerConfig.HostConfig.Dns {
 			command += " --dns=" + dns
 		}
+		command += fmtEnding
 	}
 
 	if dockerConfig.Config.Env != nil {
@@ -96,6 +120,27 @@ func jsonInspectToCommand(data []byte) (string, error) {
 				} else {
 					command += env
 				}
+				command += fmtEnding
+			}
+		}
+	}
+
+	if dockerConfig.HostConfig.Binds != nil {
+		for _, bind := range dockerConfig.HostConfig.Binds {
+			command += " -v "
+			if strings.IndexAny(bind, " &;") != -1 {
+				bind = "\"" + bind + "\""
+			}
+			command += bind
+			command += fmtEnding
+		}
+	}
+
+	if dockerConfig.HostConfig.PortBindings != nil {
+		for port, bindigs := range dockerConfig.HostConfig.PortBindings {
+			for _, binding := range bindigs {
+				command += " -p " + binding.HostPort + ":" + strings.Split(port, "/")[0]
+				command += fmtEnding
 			}
 		}
 	}
@@ -108,6 +153,7 @@ func jsonInspectToCommand(data []byte) (string, error) {
 			if preLink != splitted[3] {
 				command += ":" + splitted[3]
 			}
+			command += fmtEnding
 		}
 	}
 
@@ -115,24 +161,7 @@ func jsonInspectToCommand(data []byte) (string, error) {
 		for configName, configValue := range dockerConfig.HostConfig.LogConfig.Config {
 			command += " --log-opt " + configName + "=" + configValue
 		}
-	}
-
-	if dockerConfig.HostConfig.Binds != nil {
-		for _, bind := range dockerConfig.HostConfig.Binds {
-			command += " -v "
-			if strings.IndexAny(bind, " &;") != -1 {
-				bind = "\"" + bind + "\""
-			}
-			command += bind
-		}
-	}
-
-	if dockerConfig.HostConfig.PortBindings != nil {
-		for port, bindigs := range dockerConfig.HostConfig.PortBindings {
-			for _, binding := range bindigs {
-				command += " -p " + binding.HostPort + ":" + strings.Split(port, "/")[0]
-			}
-		}
+		command += fmtEnding
 	}
 
 	command += " " + dockerConfig.Config.Image
@@ -142,11 +171,16 @@ func jsonInspectToCommand(data []byte) (string, error) {
 func main() {
 	var data []byte
 
-	moreThanTwoArgs := len(os.Args) > 2
+	fmtFlag := flag.Bool("format", false, "format the output")
 
-	if len(os.Args) > 1 {
-		for i := 1; i < len(os.Args); i++ {
-			fileName, err := filepath.Abs(os.Args[i])
+	flag.Parse()
+
+	format = *fmtFlag
+	args := flag.Args()
+
+	if len(args) > 0 {
+		for i := 0; i < len(args); i++ {
+			fileName, err := filepath.Abs(args[i])
 
 			fileInfo, err := os.Stat(fileName)
 			if err != nil {
@@ -167,10 +201,10 @@ func main() {
 					continue
 				}
 
-				if moreThanTwoArgs {
+				if len(args) > 1 {
 					fmt.Println("File:", filepath.Base(fileName))
 					fmt.Println(command)
-					if i < len(os.Args)-1 {
+					if i < len(args)-1 {
 						fmt.Println()
 					}
 				} else {
