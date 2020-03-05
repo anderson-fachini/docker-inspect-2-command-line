@@ -1,5 +1,7 @@
 # docker-inspect-2-command-line
-A Go lang script that generates the command line to start a docker container using the docker inspect of an existing container
+A multi language scriptthat generates the command line to start a docker container using the docker inspect of an existing container
+
+Current implementations in Go and Node.js
 
 ## Usage
 ```
