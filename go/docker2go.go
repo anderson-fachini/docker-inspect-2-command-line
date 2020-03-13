@@ -29,14 +29,21 @@ type DockerConfig struct {
 		LogConfig  struct {
 			Config map[string]string
 		}
-		Memory       int
-		NanoCpus     int
-		PortBindings map[string][]struct {
-			HostIp   string
-			HostPort string
-		}
+		Memory        int
+		NanoCpus      int
 		RestartPolicy struct {
 			Name string
+		}
+		Ulimits []struct {
+			Name string
+			Hard int
+			Soft int
+		}
+	}
+	NetworkSettings struct {
+		Ports map[string][]struct {
+			HostIp   string
+			HostPort string
 		}
 	}
 }
@@ -136,11 +143,22 @@ func jsonInspectToCommand(data []byte) (string, error) {
 		}
 	}
 
-	if dockerConfig.HostConfig.PortBindings != nil {
-		for port, bindigs := range dockerConfig.HostConfig.PortBindings {
-			for _, binding := range bindigs {
-				command += " -p " + binding.HostPort + ":" + strings.Split(port, "/")[0]
-				command += fmtEnding
+	if len(dockerConfig.NetworkSettings.Ports) > 0 {
+		for portWithProtocol, bindings := range dockerConfig.NetworkSettings.Ports {
+			var port = strings.Split(portWithProtocol, "/")[0]
+
+			if bindings == nil {
+				command += " --expose " + port
+			} else {
+				for _, binding := range bindings {
+					command += " -p " + binding.HostPort
+
+					if port != binding.HostPort {
+						command += ":" + port
+					}
+
+					command += fmtEnding
+				}
 			}
 		}
 	}
@@ -162,6 +180,16 @@ func jsonInspectToCommand(data []byte) (string, error) {
 			command += " --log-opt " + configName + "=" + configValue
 		}
 		command += fmtEnding
+	}
+
+	if dockerConfig.HostConfig.Ulimits != nil {
+		for _, ulimit := range dockerConfig.HostConfig.Ulimits {
+			command += " --ulimit " + ulimit.Name + "=" + strconv.Itoa(ulimit.Soft)
+
+			if ulimit.Soft != ulimit.Hard {
+				command += ":" + strconv.Itoa(ulimit.Hard)
+			}
+		}
 	}
 
 	command += " " + dockerConfig.Config.Image

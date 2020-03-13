@@ -95,20 +95,30 @@ function jsonInspectToCommand(fileContent) {
       }
     }
 
-    if (dockerConfig.HostConfig.PortBindings != null) {
-      for (let port in dockerConfig.HostConfig.PortBindings) {
-              let binding = dockerConfig.HostConfig.PortBindings[port]
+    if (Object.keys(dockerConfig.NetworkSettings.Ports).length > 0) {
+      for (let portWithProtocol in dockerConfig.NetworkSettings.Ports) {
+        let bindings = dockerConfig.NetworkSettings.Ports[portWithProtocol]
+        let port = portWithProtocol.split('/')[0]
 
-        for (let i=0; i < binding.length; i++) {
-          command += ' -p ' + binding[i].HostPort + ':' + port.split('/')[0]
-          command += fmtEnding
+        if (bindings == null) {
+          command += ' --expose ' + port
+        } else {
+          for (let i=0; i < bindings.length; i++) {
+            command += ' -p ' + bindings[i].HostPort
+
+            if (port != bindings[i].HostPort) {
+              command += ':' + port
+            }
+
+            command += fmtEnding
+          }
         }
       }
     }
 
     if (dockerConfig.HostConfig.Links != null) {
       for (let i=0; i < dockerConfig.HostConfig.Links.length; i++) {
-              let splitted = dockerConfig.HostConfig.Links[i].split('/')
+        let splitted = dockerConfig.HostConfig.Links[i].split('/')
 
         let preLink = splitted[1].substr(0, splitted[1].length-1)
               command += ' --link ' + preLink
@@ -126,6 +136,18 @@ function jsonInspectToCommand(fileContent) {
         command += ' --log-opt ' + config + '=' + dockerConfig.HostConfig.LogConfig.Config[config]
       }
       command += fmtEnding
+    }
+
+    if (dockerConfig.HostConfig.Ulimits != null) {
+      for (let i = 0; i < dockerConfig.HostConfig.Ulimits.length; i++) {
+        let ulimit = dockerConfig.HostConfig.Ulimits[i];
+
+        command += " --ulimit " + ulimit.Name + "=" + ulimit.Soft
+
+        if (ulimit.Soft != ulimit.Hard) {
+          command += ":" + ulimit.Hard
+        }
+      }
     }
 
     command += ' ' + dockerConfig.Config.Image
